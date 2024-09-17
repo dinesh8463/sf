@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Continuous Sound Playback</title>
+    <style>
+        /* Ensure the body and HTML cover the entire viewport */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Prevent scrolling */
+            background-color: black; /* Set initial background to black */
+        }
+
+        /* Fullscreen styles */
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: white;
+            z-index: 9999; /* Ensure it's on top */
+        }
+    </style>
+</head>
+<body>
+    <div id="overlay" class="fullscreen"></div>
+    <script>
+        let audioContext;
+        let audioBufferSource;
+        let gainNode;
+
+        async function loadAudio() {
+            const response = await fetch('audi0.mp3');
+            const arrayBuffer = await response.arrayBuffer();
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            gainNode = audioContext.createGain();
+            gainNode.gain.value = 1.0; // Set volume to maximum
+
+            audioBufferSource = audioContext.createBufferSource();
+            audioBufferSource.buffer = audioBuffer;
+            audioBufferSource.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            audioBufferSource.loop = true; // Loop the audio
+        }
+
+        async function playAudio() {
+            if (!audioContext) {
+                await loadAudio();
+            }
+            audioBufferSource.start();
+            document.body.classList.add('fullscreen'); // Apply fullscreen styles
+            enterFullscreen(); // Request fullscreen mode
+            setTimeout(() => {
+                audioBufferSource.stop();
+                document.body.classList.remove('fullscreen'); // Remove fullscreen styles
+                exitFullscreen(); // Exit fullscreen mode
+            }, 60000); // Stop after 1 minute
+        }
+
+        // Function to enter fullscreen mode
+        function enterFullscreen() {
+            const overlay = document.getElementById('overlay');
+            overlay.style.display = 'block'; // Show overlay
+
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) { // Firefox
+                document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) { // Chrome, Safari and Opera
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+                document.documentElement.msRequestFullscreen();
+            }
+        }
+
+        // Function to exit fullscreen mode
+        function exitFullscreen() {
+            const overlay = document.getElementById('overlay');
+            overlay.style.display = 'none'; // Hide overlay
+
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.mozCancelFullScreen) { // Firefox
+                document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) { // Chrome, Safari and Opera
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) { // IE/Edge
+                document.msExitFullscreen();
+            }
+        }
+
+        // Start audio when the page loads
+        window.addEventListener('load', playAudio);
+
+        // Prevent keyboard input while audio is playing
+        document.addEventListener('keydown', (event) => {
+            if (document.body.classList.contains('fullscreen')) {
+                event.preventDefault(); // Prevent the default action of the keypress
+            }
+        });
+
+        // Prevent page unload during playback
+        window.addEventListener('beforeunload', (event) => {
+            if (document.body.classList.contains('fullscreen')) {
+                event.preventDefault();
+                event.returnValue = ''; // Chrome requires returnValue to be set
+            }
+        });
+    </script>
+</body>
+</html>
